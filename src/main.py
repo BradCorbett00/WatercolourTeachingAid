@@ -33,54 +33,67 @@ def retrieve_value_study(image):
     image_whites_lights_mids_and_darks = image.copy()
     value_study_image = image.copy()
 
-
-
     for i in range(
-            len(image)):  # Turns the image into lights and whites. The non-white/lights are slightly darker to signify for later.
+            len(image)):
         for j in range(len(image[i])):
             if image[i][j][2] > white_threshold:
-                image[i][j][2] = 255
+                image_whites_and_lights[i][j][2] = 255
+                image_whites_lights_and_mids[i][j][2] = 255
+                image_whites_lights_mids_and_darks[i][j][2] = 255
+                value_study_image[i][j][2] = 255
             elif image[i][j][2] > light_threshold:
-                image[i][j][2] = light_threshold
+                image_whites_and_lights[i][j][2] = light_threshold
+                image_whites_lights_and_mids[i][j][2] = light_threshold
+                image_whites_lights_mids_and_darks[i][j][2] = light_threshold
+                value_study_image[i][j][2] = light_threshold
             elif image[i][j][2] > mid_threshold:
-                image[i][j][2] = light_threshold - 1  # A mid
+                image_whites_and_lights[i][j][2] = light_threshold
+                image_whites_lights_and_mids[i][j][2] = mid_threshold
+                image_whites_lights_mids_and_darks[i][j][2] = mid_threshold
+                value_study_image[i][j][2] = mid_threshold
             elif image[i][j][2] > dark_threshold:
-                image[i][j][2] = light_threshold - 2  # A dark
+                image_whites_and_lights[i][j][2] = light_threshold
+                image_whites_lights_and_mids[i][j][2] = mid_threshold
+                image_whites_lights_mids_and_darks[i][j][2] = dark_threshold
+                value_study_image[i][j][2] = dark_threshold
             else:
-                image[i][j][2] = light_threshold - 3  # A really dark nearly black
+                image_whites_and_lights[i][j][2] = light_threshold
+                image_whites_lights_and_mids[i][j][2] = mid_threshold
+                image_whites_lights_mids_and_darks[i][j][2] = dark_threshold
+                value_study_image[i][j][2] = really_dark_value
 
-    image_whites_and_lights = image.copy()
-
-    for i in range(len(image)):
-        for j in range(len(image[i])):
-            if image[i][j][2] >= light_threshold:
-                continue
-            elif image[i][j][2] == light_threshold - 1:
-                image[i][j][2] = mid_threshold
-            elif image[i][j][2] == light_threshold - 2:
-                image[i][j][2] = mid_threshold - 1  # A dark
-            else:
-                image[i][j][2] = mid_threshold - 2  # A really dark
-
-    image_whites_lights_and_mids = image.copy()
-
-    for i in range(len(image)):
-        for j in range(len(image[i])):
-            if image[i][j][2] >= mid_threshold:
-                continue
-            elif image[i][j][2] == mid_threshold - 1:
-                image[i][j][2] = dark_threshold
-            elif image[i][j][2] == mid_threshold - 2:
-                image[i][j][2] = dark_threshold - 1  # A really dark
-
-    image_whites_lights_mids_and_darks = image.copy()
-
-    for i in range(len(image)):
-        for j in range(len(image[i])):
-            if image[i][j][2] < dark_threshold:
-                image[i][j][2] = really_dark_value
-
-    value_study_image = image
+    # image_whites_and_lights = image.copy()
+    #
+    # for i in range(len(image)):
+    #     for j in range(len(image[i])):
+    #         if image[i][j][2] >= light_threshold:
+    #             continue
+    #         elif image[i][j][2] == light_threshold - 1:
+    #             image[i][j][2] = mid_threshold
+    #         elif image[i][j][2] == light_threshold - 2:
+    #             image[i][j][2] = mid_threshold - 1  # A dark
+    #         else:
+    #             image[i][j][2] = mid_threshold - 2  # A really dark
+    #
+    # image_whites_lights_and_mids = image.copy()
+    #
+    # for i in range(len(image)):
+    #     for j in range(len(image[i])):
+    #         if image[i][j][2] >= mid_threshold:
+    #             continue
+    #         elif image[i][j][2] == mid_threshold - 1:
+    #             image[i][j][2] = dark_threshold
+    #         elif image[i][j][2] == mid_threshold - 2:
+    #             image[i][j][2] = dark_threshold - 1  # A really dark
+    #
+    # image_whites_lights_mids_and_darks = image.copy()
+    #
+    # for i in range(len(image)):
+    #     for j in range(len(image[i])):
+    #         if image[i][j][2] < dark_threshold:
+    #             image[i][j][2] = really_dark_value
+    #
+    # value_study_image = image
 
     return image_whites_and_lights, image_whites_lights_and_mids, image_whites_lights_mids_and_darks, value_study_image
 
@@ -139,7 +152,7 @@ def process_image(img, target_dimension):
 
 
 def save_processed_image(value_study_list, filename):
-    filename_base = os.path.basename(filename)
+    filename_base = os.path.basename(filename)[:-4]
 
     storage_location = 'resources\\produced_images\\' + '\\' + filename_base
 
@@ -160,7 +173,14 @@ def save_processed_image(value_study_list, filename):
                value_study_black_and_white)
 
 
+
 def create_ui():
+    main_menu = [
+        [gui.Image(key="-LOGO-")],
+        [gui.Button("Start Painting", key="-START-")],
+        [gui.Button("Tutorial", key="-TUTORIAL-")]
+    ]
+
     file_selector = [
         [
             gui.Text("Image Source"),
@@ -185,7 +205,8 @@ def create_ui():
         [gui.Text("Current Step", key="-STEP_TRACKER-")],
         [gui.Image(key="-CURRENT_STEP-")],
         [gui.Button("Previous Step", key="-PREVIOUS-", visible=False)],
-        [gui.Button("Next Step", key="-NEXT-", visible=True)]
+        [gui.Button("Next Step", key="-NEXT-", visible=True)],
+        [gui.Button("Save Image", key="-SAVE-")]
     ]
 
     image_selection_layout = [
@@ -199,7 +220,7 @@ def create_ui():
     final_layout = [
         [
             gui.Column(image_selection_layout, key="-IMAGE_SELECTION-", visible=True),
-            gui.Column(painting_layout, key="-PAINTING-", visible=False)
+            gui.Column(painting_layout, key="-PAINTING-", visible=False),
         ]
     ]
 
@@ -257,17 +278,11 @@ def create_ui():
 
             filename_base = os.path.basename(filename)
 
-
             for image in value_study_list:
                 temp_im = cv.cvtColor(image, cv.COLOR_BGR2RGB)
                 temp_im = Image.fromarray(temp_im)
                 temp_im = ImageTk.PhotoImage(temp_im)
                 images.append(temp_im)
-
-            # for image in os.listdir('resources\\produced_images\\' + filename_base):
-            #     temp_im = Image.open('resources\\produced_images\\' + filename_base + '\\' + image)
-            #     temp_im = ImageTk.PhotoImage(temp_im)
-            #     images.append(temp_im)
 
             display_window["-CURRENT_STEP-"].update(data=images[current_picture])
 
@@ -284,6 +299,11 @@ def create_ui():
             display_window["-NEXT-"].update(visible=True)
             if current_picture == 0:
                 display_window["-PREVIOUS-"].update(visible=False)
+
+        elif event == "-SAVE-":
+            save_processed_image(value_study_list, filename)
+            display_window["-IMAGE_SELECTION-"].update(visible=True)
+            display_window["-PAINTING-"].update(visible=False)
 
     display_window.close()
 
