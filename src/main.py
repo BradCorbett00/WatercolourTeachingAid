@@ -1,6 +1,3 @@
-import glob
-
-import PySimpleGUI
 import cv2 as cv
 import numpy as np
 import PySimpleGUI as gui
@@ -33,6 +30,8 @@ def retrieve_value_study(image):
     image_whites_lights_mids_and_darks = image.copy()
     value_study_image = image.copy()
 
+
+
     for i in range(
             len(image)):
         for j in range(len(image[i])):
@@ -61,39 +60,6 @@ def retrieve_value_study(image):
                 image_whites_lights_and_mids[i][j][2] = mid_threshold
                 image_whites_lights_mids_and_darks[i][j][2] = dark_threshold
                 value_study_image[i][j][2] = really_dark_value
-
-    # image_whites_and_lights = image.copy()
-    #
-    # for i in range(len(image)):
-    #     for j in range(len(image[i])):
-    #         if image[i][j][2] >= light_threshold:
-    #             continue
-    #         elif image[i][j][2] == light_threshold - 1:
-    #             image[i][j][2] = mid_threshold
-    #         elif image[i][j][2] == light_threshold - 2:
-    #             image[i][j][2] = mid_threshold - 1  # A dark
-    #         else:
-    #             image[i][j][2] = mid_threshold - 2  # A really dark
-    #
-    # image_whites_lights_and_mids = image.copy()
-    #
-    # for i in range(len(image)):
-    #     for j in range(len(image[i])):
-    #         if image[i][j][2] >= mid_threshold:
-    #             continue
-    #         elif image[i][j][2] == mid_threshold - 1:
-    #             image[i][j][2] = dark_threshold
-    #         elif image[i][j][2] == mid_threshold - 2:
-    #             image[i][j][2] = dark_threshold - 1  # A really dark
-    #
-    # image_whites_lights_mids_and_darks = image.copy()
-    #
-    # for i in range(len(image)):
-    #     for j in range(len(image[i])):
-    #         if image[i][j][2] < dark_threshold:
-    #             image[i][j][2] = really_dark_value
-    #
-    # value_study_image = image
 
     return image_whites_and_lights, image_whites_lights_and_mids, image_whites_lights_mids_and_darks, value_study_image
 
@@ -127,9 +93,10 @@ def reduce_resolution(height, width, target_dimension):
     new_size = (width, height)
     return new_size
 
-
 def process_image(img, target_dimension):
     img = resize_opencv_image(img, target_dimension)
+
+    img = cv.stylization(img, sigma_s=200, sigma_r=1)
 
     img = cv.bilateralFilter(img, 35, 75, 75)
 
@@ -173,10 +140,9 @@ def save_processed_image(value_study_list, filename):
                value_study_black_and_white)
 
 
-
 def create_ui():
-    main_menu = [
-        [gui.Image(key="-LOGO-")],
+    main_menu_layout = [
+        [gui.Image("resources\\ui_images\\LogoTemp.png", key="-LOGO-")],
         [gui.Button("Start Painting", key="-START-")],
         [gui.Button("Tutorial", key="-TUTORIAL-")]
     ]
@@ -195,10 +161,14 @@ def create_ui():
     ]
 
     image_to_process_column = [
-        [gui.Text("Choose an image from list on left:")],
-        [gui.Text(size=(40, 1), key="-TOUT-")],
+        [gui.Text("Choose an image to paint from left:")],
+        [gui.Text(size=(40, 1), key="-IMAGE_TITLE-")],
         [gui.Image(key="-IMAGE-")],
-        [gui.Button("Process This Photo?", key="-BUTTON-", visible=False)]
+        [gui.Button("Process This Photo?", key="-PROCESS-", visible=False)]
+    ]
+
+    loading_column = [
+        [gui.Text("Processing Image, please wait. This can take a while.")]
     ]
 
     painting_layout = [
@@ -213,14 +183,16 @@ def create_ui():
         [
             gui.Column(file_selector),
             gui.VSeperator(),
-            gui.Column(image_to_process_column),
+            gui.Column(image_to_process_column, key="-IMAGE_TO_PROCESS-"),
         ]
     ]
 
     final_layout = [
         [
+            gui.Column(main_menu_layout, key="-MAIN_MENU-", visible=False),
             gui.Column(image_selection_layout, key="-IMAGE_SELECTION-", visible=True),
             gui.Column(painting_layout, key="-PAINTING-", visible=False),
+            gui.Column(loading_column, key="-LOADING-", visible=False)
         ]
     ]
 
@@ -262,19 +234,18 @@ def create_ui():
 
             image = ImageTk.PhotoImage(image=im)
 
-            display_window["-TOUT-"].update(filename)
+            display_window["-IMAGE_TITLE-"].update(filename)
             display_window["-IMAGE-"].update(data=image)
-            display_window["-BUTTON-"].update(visible=True)
-        elif event == "-BUTTON-":
+            display_window["-PROCESS-"].update(visible=True)
+        elif event == "-PROCESS-":
+            print("Here")
             display_window["-IMAGE_SELECTION-"].update(visible=False)
-            display_window["-PAINTING-"].update(visible=True)
+            display_window["-LOADING-"].update(visible=True)
 
             images.clear()
             img = cv.imread(filename)
 
             value_study_list = process_image(img, 1280)
-
-            # save_processed_image(value_study_list, filename)
 
             filename_base = os.path.basename(filename)
 
@@ -283,6 +254,9 @@ def create_ui():
                 temp_im = Image.fromarray(temp_im)
                 temp_im = ImageTk.PhotoImage(temp_im)
                 images.append(temp_im)
+
+            display_window["-LOADING-"].update(visible=False)
+            display_window["-PAINTING-"].update(visible=True)
 
             display_window["-CURRENT_STEP-"].update(data=images[current_picture])
 
@@ -311,25 +285,3 @@ def create_ui():
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     create_ui()
-    # storage_location = 'resources\\produced_images\\'
-    # img = cv.imread('resources\\test_images\\Glacier.jpg')
-    #
-    # img_name = "Glacier"
-    #
-    # value_study_test = process_image(img, 1280)
-    #
-    # if not (os.path.exists(storage_location + '\\' + img_name)):
-    #     os.makedirs(storage_location + '\\' + img_name)
-    #
-    # value_study_lights = cv.cvtColor(value_study_test[0], cv.COLOR_HSV2BGR)
-    # value_study_mids = cv.cvtColor(value_study_test[1], cv.COLOR_HSV2BGR)
-    # value_study_darks = cv.cvtColor(value_study_test[2], cv.COLOR_HSV2BGR)
-    # value_study_test_full = cv.cvtColor(value_study_test[3], cv.COLOR_HSV2BGR)
-    # value_study_black_and_white_test = cv.cvtColor(value_study_test_full, cv.COLOR_BGR2GRAY)
-    #
-    # cv.imwrite(storage_location + '\\' + img_name + '\\' + 'light_value_study.png', value_study_lights)
-    # cv.imwrite(storage_location + '\\' + img_name + '\\' + 'mid_value_study.png', value_study_mids)
-    # cv.imwrite(storage_location + '\\' + img_name + '\\' + 'dark_value_study.png', value_study_darks)
-    # cv.imwrite(storage_location + '\\' + img_name + '\\' + 'full_value_study.png', value_study_test_full)
-    # cv.imwrite(storage_location + '\\' + img_name + '\\' + 'black_white_value_study.png',
-    #            value_study_black_and_white_test)
