@@ -4,9 +4,26 @@ import numpy
 import numpy as np
 import PySimpleGUI as gui
 import os.path
+
+import scipy.ndimage
 from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageTk
+
+
+def produce_sketch(image):
+    #Approach 1
+    grey = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+
+    inverted = cv.bitwise_not(grey)
+
+    blurred = cv.GaussianBlur(inverted, (51, 51), 0)
+
+    inverted_blur = cv.bitwise_not(blurred)
+
+    final_sketch = cv.divide(grey, inverted_blur, scale=256.0)
+
+    return final_sketch
 
 
 def reduce_colours_and_produce_palette(image, k):
@@ -32,27 +49,6 @@ def reduce_colours_and_produce_palette(image, k):
     # End
 
     return final_img, im
-
-
-def produce_palette(image):
-    image_cv = np.asarray(image)
-
-    # i = np.float32(image_cv).reshape(-1, 3)
-    # model = cv.kmeans(n_clusters=10).fit(i)
-    # colours = model.cluster_centers_
-    #
-    # n = len(colours)
-    #
-    # im = Image.new('RGBA', (100 * n, 100))
-    # draw = ImageDraw.Draw(im)
-    #
-    # for idx, color in enumerate(colours):
-    #     color = tuple([int(x) for x in color])
-    #     print(color)
-    #     draw.rectangle([(100 * idx, 0), (100 * (idx + 1), 100 * (idx + 1))],
-    #                    fill=tuple(color))
-    # plot.imshow(im)
-    # plot.show()
 
 
 def retrieve_value_study(image):
@@ -282,16 +278,17 @@ def reduce_resolution(height, width, target_dimension):
 
 
 def process_image(img, target_dimension):
-    # images= []
+
     img = resize_opencv_image(img, target_dimension)
 
-    # img = cv.stylization(img, sigma_s=200, sigma_r=1)
 
     img = cv.bilateralFilter(img, 35, 75, 75)
 
-    img, palette = reduce_colours_and_produce_palette(img, 8)
+    sketch = produce_sketch(img)
 
-    cv_palette = numpy.asarray(palette)
+    img, pil_palette = reduce_colours_and_produce_palette(img, 8)
+
+    palette = numpy.asarray(pil_palette)
 
     img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
@@ -308,14 +305,15 @@ def process_image(img, target_dimension):
     highlight_darks_image = cv.cvtColor(value_study_list_HSV[6], cv.COLOR_HSV2BGR)
     highlight_really_darks_image = cv.cvtColor(value_study_list_HSV[7], cv.COLOR_HSV2BGR)
 
-    value_study_list = [cv_palette, value_study_black_and_white, value_study_lights, value_study_mids, value_study_darks,
+    value_study_list = [palette, sketch, value_study_black_and_white, value_study_lights, value_study_mids,
+                        value_study_darks,
                         value_study_list_full_all_tones, highlight_lights_image, highlight_mids_image,
                         highlight_darks_image, highlight_really_darks_image]
 
     return value_study_list
 
 
-def save_processed_image(value_study_list, filename):
+def save_processed_image(image_list, filename):
     filename_base = os.path.basename(filename)[:-4]
 
     storage_location = 'resources\\produced_images\\' + '\\' + filename_base
@@ -323,16 +321,20 @@ def save_processed_image(value_study_list, filename):
     if not (os.path.exists(storage_location)):
         os.makedirs(storage_location)
 
-    value_study_black_and_white = value_study_list[0]
-    value_study_lights = value_study_list[1]
-    value_study_mids = value_study_list[2]
-    value_study_darks = value_study_list[3]
-    value_study_all_tones = value_study_list[4]
-    highlight_lights_image = value_study_lights[5]
-    highlight_mids_image = value_study_list[6]
-    highlight_darks_image = value_study_list[7]
-    highlight_really_darks_image = value_study_list[8]
+    palette = image_list[0]
+    sketch = image_list[1]
+    value_study_black_and_white = image_list[2]
+    value_study_lights = image_list[3]
+    value_study_mids = image_list[4]
+    value_study_darks = image_list[5]
+    value_study_all_tones = image_list[6]
+    highlight_lights_image = value_study_lights[7]
+    highlight_mids_image = image_list[8]
+    highlight_darks_image = image_list[9]
+    highlight_really_darks_image = image_list[10]
 
+    cv.imwrite(storage_location + '\\' + 'palette.png', palette)
+    cv.imwrite(storage_location + '\\' + 'sketch.png', sketch)
     cv.imwrite(storage_location + '\\' + 'light_value_study.png', value_study_lights)
     cv.imwrite(storage_location + '\\' + 'mid_value_study.png', value_study_mids)
     cv.imwrite(storage_location + '\\' + 'dark_value_study.png', value_study_darks)
@@ -515,7 +517,7 @@ def create_ui():
             display_window["-PREVIOUS-"].update(visible=True)
             if current_picture >= len(images) - 5:  # Stops the user from going into the highlighted images
                 display_window["-NEXT-"].update(visible=False)
-            if current_picture >= 2:
+            if current_picture >= 3:
                 display_window["-HIGHLIGHT-"].update(visible=True)
 
         elif event == "-PREVIOUS-":
@@ -524,7 +526,7 @@ def create_ui():
             display_window["-NEXT-"].update(visible=True)
             if current_picture <= 0:
                 display_window["-PREVIOUS-"].update(visible=False)
-            if current_picture < 2:
+            if current_picture < 3:
                 display_window["-HIGHLIGHT-"].update(visible=False)
 
         elif event == "-HIGHLIGHT-":
