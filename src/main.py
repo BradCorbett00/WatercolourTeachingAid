@@ -4,15 +4,12 @@ import numpy
 import numpy as np
 import PySimpleGUI as gui
 import os.path
-
-import scipy.ndimage
 from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageTk
 
 
 def produce_sketch(image):
-    #Approach 1
     grey = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
 
     inverted = cv.bitwise_not(grey)
@@ -27,9 +24,9 @@ def produce_sketch(image):
 
 
 def reduce_colours_and_produce_palette(image, k):
-    i = np.float32(image).reshape(-1, 3)
+    reshaped_image = np.float32(image).reshape(-1, 3)
     condition = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 20, 1.0)
-    ret, label, center = cv.kmeans(i, k, None, condition, 10, cv.KMEANS_RANDOM_CENTERS)
+    ret, label, center = cv.kmeans(reshaped_image, k, None, condition, 10, cv.KMEANS_RANDOM_CENTERS)
 
     center = np.uint8(center)
 
@@ -37,16 +34,15 @@ def reduce_colours_and_produce_palette(image, k):
 
     final_img = final_img.reshape(image.shape)
 
-    # Start
+    # Palette Generation
     colours = center
     n = len(colours)
     im = Image.new('RGB', (100 * n, 100))
     draw = ImageDraw.Draw(im)
-    for idx, color in enumerate(colours):
+    for index, color in enumerate(colours):
         color = tuple([int(x) for x in color])
-        draw.rectangle([(100 * idx, 0), (100 * (idx + 1), 100 * (idx + 1))],
+        draw.rectangle([(100 * index, 0), (100 * (index + 1), 100 * (index + 1))],
                        fill=tuple(color))
-    # End
 
     return final_img, im
 
@@ -165,88 +161,6 @@ def retrieve_value_study(image):
     return image_whites_and_lights, image_whites_lights_and_mids, image_whites_lights_mids_and_darks, value_study_image, highlight_lights_image, highlight_mids_image, highlight_darks_image, highlight_really_darks_image
 
 
-# def retrieve_value_study(image):
-#     white_threshold = 220
-#     light_threshold = 180
-#     mid_threshold = 145
-#     dark_threshold = 90
-#     really_dark_value = 40
-#
-#     to_make = ['whites_and_lights',
-#                'whites_lights_mids',
-#                'whites_lights_mids_darks',
-#                'value_study',
-#                'h_lights',
-#                'h_mids',
-#                'h_darks',
-#                'h_really_darks']
-#
-#     to_edit = {key: image.copy() for key in to_make}
-#
-#     def value_study_extraction(k):
-#         print("Start thread")
-#         for i in range(len(image)):
-#             for j in range(len(image[i])):
-#                 if image[i][j][2] > white_threshold:
-#                     # for k, v in to_edit.values():
-#                     to_edit[k][i][j][1] = 0
-#                     to_edit[k][i][j][2] = 255
-#
-#                 elif image[i][j][2] > light_threshold:
-#                     # for k, v in to_edit.values():
-#                     if k == 'h_lights':
-#                         to_edit[k][i][j][1], to_edit[k][i][j][2] = 255, 255
-#                     else:
-#                         to_edit[k][i][j][2] = light_threshold
-#
-#                 elif image[i][j][2] > mid_threshold:
-#                     # for k, v in to_edit.values():
-#                     if k == 'h_lights' or k == 'h_mids':
-#                         to_edit[k][i][j][1], to_edit[k][i][j][2] = 255, 255
-#
-#                     elif k == 'whites_and_lights':
-#                         to_edit[k][i][j][2] = light_threshold
-#
-#                     else:
-#                         to_edit[k][i][j][2] = mid_threshold
-#
-#                 elif image[i][j][2] > dark_threshold:
-#                     # for k, v in to_edit.values():
-#                     if k.startswith("h") and k != 'h_really_darks':  # if highlight
-#                         to_edit[k][i][j][1], to_edit[k][i][j][2] = 255, 255
-#                     elif k == 'whites_and_lights':
-#                         to_edit[k][i][j][2] = light_threshold
-#                     elif k == 'whites_lights_mids':
-#                         to_edit[k][i][j][2] = mid_threshold
-#                     else:
-#                         to_edit[k][i][j][2] = dark_threshold
-#
-#                 else:
-#                     # for k, v in to_edit.values():
-#                     if k.startswith('h'):
-#                         to_edit[k][i][j][1], to_edit[k][i][j][2] = 255, 255
-#
-#                     elif k == 'whites_lights':
-#                         to_edit[k][i][j][2] = light_threshold
-#
-#                     elif k == 'whites_lights_mids':
-#                         to_edit[k][i][j][2] = mid_threshold
-#
-#                     elif k == 'whites_lights_mids_darks':
-#                         to_edit[k][i][j][2] = dark_threshold
-#
-#                     elif k == 'value_study':
-#                         to_edit[k][i][j][2] = really_dark_value
-#
-#
-#     with concurrent.futures.ThreadPoolExecutor() as executor:
-#         # for i in range(len(image)):
-#         #     for j in range(len(image[i])):
-#         executor.map(value_study_extraction, to_edit.keys())
-#
-#     return to_edit.values()
-
-
 def resize_opencv_image(img, target_dimension):  # Works with an OpenCV image
     width = int(img.shape[1])
     height = int(img.shape[0])
@@ -278,9 +192,7 @@ def reduce_resolution(height, width, target_dimension):
 
 
 def process_image(img, target_dimension):
-
     img = resize_opencv_image(img, target_dimension)
-
 
     img = cv.bilateralFilter(img, 35, 75, 75)
 
@@ -349,10 +261,13 @@ def save_processed_image(image_list, filename):
 
 
 def create_ui():
+    gui.theme("SystemDefault1")
     main_menu_layout = [
+        [gui.Push()],
         [gui.Image("resources\\ui_images\\LogoTemp.png", key="-LOGO-")],
-        [gui.Button("Start Painting", key="-START-")],
-        [gui.Button("Tutorial", key="-TUTORIAL-")]
+        [gui.Push(), gui.Button("Start Painting", key="-START-"), gui.Push()],
+        [gui.Push(), gui.Button("Tutorial", key="-TUTORIAL-"), gui.Push()],
+        [gui.Push()],
     ]
 
     file_selector = [
@@ -375,17 +290,19 @@ def create_ui():
         [gui.Button("Process This Photo?", key="-PROCESS-", visible=False)]
     ]
 
-    loading_column = [
-        [gui.Text("Processing Image, please wait. This can take a while.")]
-    ]
-
     painting_layout = [
-        [gui.Text("Current Step", key="-STEP_TRACKER-")],
+        [gui.Push(), gui.Text("Current Step", key="-STEP_TRACKER-"), gui.Push()],
+        [gui.VPush()],
         [gui.Image(key="-CURRENT_STEP-")],
-        [gui.Button("Previous Step", key="-PREVIOUS-", visible=False)],
-        [gui.Button("Next Step", key="-NEXT-", visible=True)],
-        [gui.Button("Save Image", key="-SAVE-", visible=True)],
-        [gui.Button("Highlight", key="-HIGHLIGHT-", visible=False)]
+        [gui.VPush()],
+        [gui.Button("Previous Step", key="-PREVIOUS-"),
+         gui.Push(),
+         gui.Button("More Explanation", key="-EXPLAIN-"),
+         gui.Push(),
+         gui.Button("Next Step", tooltip="Next Step", key="-NEXT-")],
+        [gui.Button("Save Image", key="-SAVE-"),
+         gui.Push(),
+         gui.Button("Highlight", key="-HIGHLIGHT-")],
     ]
 
     image_selection_layout = [
@@ -398,18 +315,46 @@ def create_ui():
 
     final_layout = [
         [
-            gui.Column(main_menu_layout, key="-MAIN_MENU-", visible=True),
-            gui.Column(image_selection_layout, key="-IMAGE_SELECTION-", visible=False),
-            gui.Column(painting_layout, key="-PAINTING-", visible=False),
-            gui.Column(loading_column, key="-LOADING-", visible=False)
+            gui.Column(main_menu_layout, key="-MAIN_MENU-", visible=True, pad=(0, 20), justification='c'),
+            gui.Column(image_selection_layout, key="-IMAGE_SELECTION-", visible=False, justification='c'),
+            gui.Column(painting_layout, key="-PAINTING-", visible=False, justification='c'),
         ]
     ]
 
-    display_window = gui.Window("Tech-Nicolour", final_layout, resizable=True)
+    display_window = gui.Window("Tech-Nicolour", final_layout, resizable=True, finalize=True)
+    display_window.maximize()
 
     images = []
     current_picture = 0
     is_highlight: bool = False
+
+    TOOLTIPS = ["This is your palette. This is the general collection of colours present in your final image.",
+                "This is your sketch. This is will let you keep in mind the general outlines of objects while painting, which can be a bit hard to do.",
+                "This is your value study. Use this to keep in mind the the eventual dark and bright spots of your final image - This will let you know what needs more paint!",
+                "This is your lights layer of painting.",
+                "This is your mids layer",
+                "This is your darks layer",
+                "This is your full image",
+                "This is your lights highlight",
+                "THis is your mids highlight",
+                "This is your darks highlight",
+                "This is your full image highlights"]
+
+    STEPS = ["Palette", "Sketch", "Value Study", "Lights", "Mids", "Darks", "Final Image", "Lights Highlighted Changes",
+             "Mids Highlighted Changes", "Darks Highlighted Changes", "Full Image Highlighted Changes"]
+
+    STEP_EXPLANATIONS = [
+        "Palette - This makes up the colours that will be present in your final painting.\n Get a feel for it now!",
+        "Sketch - This will let you keep in mind the general outlines and shapes on objects as you're painting them.",
+        "Value Study -",
+        "Lights Layer -",
+        "Mids Layer -",
+        "Darks Layer -",
+        "Final Layer -",
+        "Lights Highlight - ",
+        "Mids Highlight -",
+        "Darks Highlight -",
+        "Final Layer Highlight -"]
 
     while True:  # Event Loop
         event, values = display_window.read()
@@ -421,7 +366,6 @@ def create_ui():
         if event == "-START-":
             display_window["-MAIN_MENU-"].update(visible=False)
             display_window["-IMAGE_SELECTION-"].update(visible=True)
-
 
         # Image Selection
         elif event == "-FOLDER-":
@@ -459,42 +403,27 @@ def create_ui():
             images.clear()
             img = cv.imread(filename)
 
-            # for i in range(1000):
-            #     if not gui.popup_animated(gui.DEFAULT_BASE64_LOADING_GIF,
-            #                              message='Can Take Some Time',
-            #                              no_titlebar=False, time_between_frames=100, text_color='black',
-            #                              background_color='white'):
-            #
-            #         break
-
-            # t = threading.Thread(target=process_image, args=(img, 1280,))
-            # t.start()
-            #
-            # while True:
-            #     if t.is_alive():
-            #         gui.popup_animated(gui.DEFAULT_BASE64_LOADING_GIF,
-            #                                    message='Can Take Some Time',
-            #                                    no_titlebar=False, time_between_frames=100, text_color='black',
-            #                                    background_color='white')
-            #
-            #     else:
-            #         gui.popup_animated(None)
-            #         break
-            #
-            # t.join()
-            # print("thread ended")
             executor = concurrent.futures.ThreadPoolExecutor()
             t = executor.submit(process_image, img, 1280)
 
-            while True:
-                if t.running():
-                    gui.popup_animated(gui.DEFAULT_BASE64_LOADING_GIF,
-                                       message='Can Take Some Time',
+            # while True:
+            #     if t.running():
+            #         gui.popup_animated(gui.DEFAULT_BASE64_LOADING_GIF,
+            #                            message='Can Take Some Time \n Fun Fact:',
+            #                            no_titlebar=True, keep_on_top=True, time_between_frames=100, text_color='black',
+            #                            background_color='white')
+            #     else:
+            #         gui.popup_animated(None)
+            #         break
+
+            while t.running():
+                gui.popup_animated(gui.DEFAULT_BASE64_LOADING_GIF,
+                                       message='Can Take Some Time \n Fun Fact:',
                                        no_titlebar=True, keep_on_top=True, time_between_frames=100, text_color='black',
                                        background_color='white')
-                else:
-                    gui.popup_animated(None)
-                    break
+
+
+            gui.popup_animated(None)
 
             value_study_list = t.result()
 
@@ -505,55 +434,76 @@ def create_ui():
                 images.append(temp_im)
 
             display_window["-PAINTING-"].update(visible=True)
+            display_window["-NEXT-"].update(disabled=False)
+            display_window["-PREVIOUS-"].update(disabled=True)
+            display_window["-HIGHLIGHT-"].update(disabled=True)
 
             display_window["-CURRENT_STEP-"].update(data=images[current_picture])
-
-
+            display_window["-CURRENT_STEP-"].set_tooltip(TOOLTIPS[current_picture])
+            display_window["-STEP_TRACKER-"].update(STEPS[current_picture])
 
         # Painting Section
         elif event == "-NEXT-":
             current_picture = current_picture + 1
             display_window["-CURRENT_STEP-"].update(data=images[current_picture])
-            display_window["-PREVIOUS-"].update(visible=True)
+            display_window["-CURRENT_STEP-"].set_tooltip(TOOLTIPS[current_picture])
+            display_window["-STEP_TRACKER-"].update(STEPS[current_picture])
+
+            display_window["-PREVIOUS-"].update(disabled=False)
             if current_picture >= len(images) - 5:  # Stops the user from going into the highlighted images
-                display_window["-NEXT-"].update(visible=False)
+                display_window["-NEXT-"].update(disabled=True)
             if current_picture >= 3:
-                display_window["-HIGHLIGHT-"].update(visible=True)
+                display_window["-HIGHLIGHT-"].update(disabled=False)
 
         elif event == "-PREVIOUS-":
             current_picture = current_picture - 1
+
             display_window["-CURRENT_STEP-"].update(data=images[current_picture])
-            display_window["-NEXT-"].update(visible=True)
+            display_window["-CURRENT_STEP-"].set_tooltip(TOOLTIPS[current_picture])
+            display_window["-STEP_TRACKER-"].update(STEPS[current_picture])
+
+            display_window["-NEXT-"].update(disabled=False)
             if current_picture <= 0:
-                display_window["-PREVIOUS-"].update(visible=False)
+                display_window["-PREVIOUS-"].update(disabled=True)
             if current_picture < 3:
-                display_window["-HIGHLIGHT-"].update(visible=False)
+                display_window["-HIGHLIGHT-"].update(disabled=True)
 
         elif event == "-HIGHLIGHT-":
             if is_highlight:
                 is_highlight = False
-                display_window["-NEXT-"].update(visible=True)
-                display_window["-PREVIOUS-"].update(visible=True)
+                display_window["-NEXT-"].update(disabled=False)
+                display_window["-PREVIOUS-"].update(disabled=False)
                 current_picture = current_picture - 4
+
                 display_window["-CURRENT_STEP-"].update(data=images[current_picture])
+                display_window["-CURRENT_STEP-"].set_tooltip(TOOLTIPS[current_picture])
+                display_window["-STEP_TRACKER-"].update(STEPS[current_picture])
+
                 display_window["-HIGHLIGHT-"].update("Highlight")
             elif not is_highlight:
                 is_highlight = True
-                display_window["-NEXT-"].update(visible=False)
-                display_window["-PREVIOUS-"].update(visible=False)
+                display_window["-NEXT-"].update(disabled=True)
+                display_window["-PREVIOUS-"].update(disabled=True)
                 current_picture = current_picture + 4
+
                 display_window["-CURRENT_STEP-"].update(data=images[current_picture])
+                display_window["-CURRENT_STEP-"].set_tooltip(TOOLTIPS[current_picture])
+                display_window["-STEP_TRACKER-"].update(STEPS[current_picture])
+
                 display_window["-HIGHLIGHT-"].update("Revert")
 
             if current_picture <= 0:
-                display_window["-PREVIOUS-"].update(visible=False)
+                display_window["-PREVIOUS-"].update(disabled=True)
             if current_picture >= len(images) - 5:  # Stops the user from going into the highlighted images
-                display_window["-NEXT-"].update(visible=False)
+                display_window["-NEXT-"].update(disabled=True)
 
         elif event == "-SAVE-":
             save_processed_image(value_study_list, filename)
             display_window["-IMAGE_SELECTION-"].update(visible=True)
             display_window["-PAINTING-"].update(visible=False)
+
+        elif event == "-EXPLAIN-":
+            gui.popup_ok(STEP_EXPLANATIONS[current_picture])
 
     display_window.close()
 
